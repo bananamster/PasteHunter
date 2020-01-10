@@ -39,6 +39,8 @@ class SlackOutput():
                             "author_name": "PasteHunter",
                             "title": "Paste ID {0}".format(paste_data['pasteid']),
                             "text": "Yara Rule {0} Found on {1}\n\r{2}\n\r{3}/{4}".format(paste_data['YaraRule'], paste_data['pastesite'], paste_data['scrape_url'], paste_data['pastesite'], paste_data['pasteid'])
+                            if paste_data['pastesite'] = 'pastebin.com'
+                                "text": "Pastebin URL {0}/{1}".format(paste_data['pastesite'], paste_data['pasteid'])
                         }
                     ]
                 }
