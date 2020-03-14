@@ -1,8 +1,9 @@
 import logging
 import math
-import pathlib
+import re
 from datetime import datetime
 
+import fnmatch
 import requests
 
 # Future work/improvement that can happen here: support PR diffs, they contain a patch URL
@@ -22,6 +23,8 @@ api_version = 'application/vnd.github.v3+json'  # Set Accept header to force api
 #                MB    KB     B
 diff_size_limit = 500 * 1000 * 1000
 
+blob_hash_pattern = re.compile('https://github.com/.*/blob/(.*?)/.*')
+
 
 def _make_request(url, headers):
     req = requests.get(url, headers=headers)
@@ -39,6 +42,10 @@ def _make_request(url, headers):
     elif req.status_code == 403:
         logger.error('Login Attempts Exceeded')
         return None
+
+def get_blob_hash(file_dict):
+    blob_url = file_dict.get('blob_url')
+    return blob_hash_pattern.findall(blob_url)[0]
 
 def recent_pastes(conf, input_history):
     oauth_token = conf['inputs']['github']['api_token']
@@ -62,6 +69,7 @@ def recent_pastes(conf, input_history):
 
     gh_file_blacklist = conf['inputs']['github']['file_blacklist']
     gh_user_blacklist = conf['inputs']['github']['user_blacklist']
+    ignore_bots = conf['inputs']['github']['ignore_bots']
 
     try:
         # Get the required amount of entries via pagination
@@ -89,6 +97,11 @@ def recent_pastes(conf, input_history):
                     if event_meta.get('actor').get('login') in gh_user_blacklist:
                         logger.info('Blacklisting GitHub event from user: {0}'.format(event_meta.get('login')))
                         continue
+                    login = event_meta.get('actor').get('login')
+                    if ignore_bots and login and login.endswith("[bot]"):
+                        logger.info('Ignoring GitHub event from bot user: {}'.format(login))
+                        continue
+
                 payload = event_meta.get('payload')
                 if not 'commits' in payload:
                     # Debug, because this is high output
@@ -103,28 +116,28 @@ def recent_pastes(conf, input_history):
                     if commit_data.get('committer') and commit_data.get('committer').get('login') in gh_user_blacklist:
                         logger.info('Blacklisting GitHub event from user: {0}'.format(event_meta['owner']['login']))
                         continue
-                    for file in commit_data.get('files'):
-                        file_path = file.get('filename')
-                        file_name = file_path
-                        # Convert path -> filename
-                        if '/' in file_name:
-                            file_name = file_name.split('/')[-1]
+                    for file_obj in commit_data.get('files'):
+                        is_blacklisted = False
+                        file_path = file_obj.get('filename')
                         for pattern in gh_file_blacklist:
-                            pathlib.PurePath(file_path).match(pattern)
-                        if file_name in gh_file_blacklist:
-                            logger.info('Blacklisting file {0} from event {1}'.format(file_name, event_id))
+                            if fnmatch.fnmatch(file_path, pattern):
+                                logger.info('Blacklisting file {0} from event {1} (matched pattern "{2}")'.format(file_path, event_id, pattern))
+                                is_blacklisted = True
+                                break
+
+                        if is_blacklisted:
                             continue
 
-                        gist_data = file
-                        gist_data['confname'] = 'github'
-                        gist_data['@timestamp'] = event_meta['created_at']
-                        gist_data['pasteid'] = event_id
-                        gist_data['user'] = event_meta.get('actor').get('login')
-                        gist_data['pastesite'] = 'github.com'
-                        gist_data['scrape_url'] = file.get('raw_url')
+                        github_data = file_obj
+                        github_data['confname'] = 'github'
+                        github_data['@timestamp'] = event_meta['created_at']
+                        github_data['pasteid'] = get_blob_hash(file_obj) or event_id
+                        github_data['user'] = event_meta.get('actor').get('login')
+                        github_data['pastesite'] = 'github.com'
+                        github_data['scrape_url'] = file_obj.get('raw_url')
                         # remove some original keys just to keep it a bit cleaner
-                        del gist_data['raw_url']
-                        paste_list.append(gist_data)
+                        del github_data['raw_url']
+                        paste_list.append(github_data)
 
         # Return results and history
         return paste_list, history

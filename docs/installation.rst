@@ -1,9 +1,23 @@
 Installation
 ============
 
-There are a few ways to install 
+There are a few ways to install PasteHunter. Pip is the recommended route for stable releases.
 
 
+Pip Installation
+------------------
+**Note** Pip or setup.py installation will require ``gcc`` and ``wheel``.
+
+Pip installation is supported for versions after 1.2.1. This can easily be done using:
+
+``pip install pastehunter``
+
+You will then need to configure pastehunter. To do this, use:.::
+
+    mkdir -p ~/.config
+    wget https://raw.githubusercontent.com/kevthehermit/PasteHunter/master/settings.json.sample -O ~/.config/pastehunter.json
+
+Then modify ~/.config/pastehunter.json to match your desired settings and run the project using ``pasthunter-cli``
 
 Local Installation
 ------------------
@@ -14,9 +28,7 @@ If you want to run the latest stable version grab the latest release from https:
 If you want to run the development version clone the repository or download the latest archive. 
 
 Pastehunter has very few dependancies you can install all the python libraries using the requirements.txt file and ``sudo pip3 install -r requirements.txt``
-    
-    
-    
+
 
 Yara
 ^^^^
@@ -53,6 +65,8 @@ A sample podspec for kubernets is coming soon.
 
 Configuration
 -------------
+**See** :doc:`this page <./migrating>` **for help migrating configs from older versions (<1.2.1)**
+
 Before you can get up and running you will need to set up the basic config. 
 Copy the settings.json.sample to settings.json and edit with your editor of choice. 
 
@@ -101,7 +115,7 @@ Starting
 
 You can run pastehunter by calling the script by name. 
 
-``python3 pastehunter.py``
+``python3 pastehunter-cli``
 
 Service
 ^^^^^^^
@@ -118,7 +132,7 @@ Add the following text updating as appropriate for your setup paying attention t
     
     [Service]
     WorkingDirectory=/opt/PasteHunter
-    ExecStart=/usr/bin/python3 /opt/PasteHunter/pastehunter.py
+    ExecStart=/usr/bin/python3 /opt/PasteHunter/pastehunter-cli
     User=localuser
     Group=localuser
     Restart=always
